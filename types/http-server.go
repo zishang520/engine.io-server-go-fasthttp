@@ -7,6 +7,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
+	_types "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
@@ -81,7 +82,7 @@ func (s *HttpServer) Close(fn func(error)) (err error) {
 	return err
 }
 
-func (s *HttpServer) Listen(addr string, fn Callable) *fasthttp.Server {
+func (s *HttpServer) Listen(addr string, fn _types.Callable) *fasthttp.Server {
 	server := s.httpServer(s)
 	go func() {
 		if err := server.ListenAndServe(addr); err != nil {
@@ -97,7 +98,7 @@ func (s *HttpServer) Listen(addr string, fn Callable) *fasthttp.Server {
 	return server
 }
 
-func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn Callable) *fasthttp.Server {
+func (s *HttpServer) ListenTLS(addr string, certFile string, keyFile string, fn _types.Callable) *fasthttp.Server {
 	server := s.httpServer(s)
 	go func() {
 		if err := server.ListenAndServeTLS(addr, certFile, keyFile); err != nil {

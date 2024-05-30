@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/valyala/fasthttp"
+	_types "github.com/zishang520/engine.io/v2/types"
 )
 
 type (
@@ -195,10 +196,10 @@ func (c *cors) configureMaxAge() *cors {
 	return c
 }
 
-func parseVary(vary string) *Set[string] {
+func parseVary(vary string) *_types.Set[string] {
 	end := 0
 	start := 0
-	list := NewSet[string]()
+	list := _types.NewSet[string]()
 
 	// gather tokens
 	for i, l := 0, len(vary); i < l; i++ {

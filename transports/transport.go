@@ -5,11 +5,12 @@ import (
 
 	"github.com/zishang520/engine.io-go-parser/packet"
 	"github.com/zishang520/engine.io-go-parser/parser"
-	_types "github.com/zishang520/engine.io-go-parser/types"
+	p_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
+	e_types "github.com/zishang520/engine.io/v2/types"
 )
 
 var transport_log = log.NewLog("engine:transport")
@@ -21,8 +22,8 @@ type transport struct {
 	_proto_ Transport
 
 	maxHttpBufferSize int64
-	httpCompression   *types.HttpCompression
-	perMessageDeflate *types.PerMessageDeflate
+	httpCompression   *e_types.HttpCompression
+	perMessageDeflate *e_types.PerMessageDeflate
 
 	sid      string
 	protocol int // 3
@@ -147,19 +148,19 @@ func (t *transport) SetReadyState(state string) {
 	t._readyState = state
 }
 
-func (t *transport) HttpCompression() *types.HttpCompression {
+func (t *transport) HttpCompression() *e_types.HttpCompression {
 	return t.httpCompression
 }
 
-func (t *transport) SetHttpCompression(httpCompression *types.HttpCompression) {
+func (t *transport) SetHttpCompression(httpCompression *e_types.HttpCompression) {
 	t.httpCompression = httpCompression
 
 }
-func (t *transport) PerMessageDeflate() *types.PerMessageDeflate {
+func (t *transport) PerMessageDeflate() *e_types.PerMessageDeflate {
 	return t.perMessageDeflate
 }
 
-func (t *transport) SetPerMessageDeflate(perMessageDeflate *types.PerMessageDeflate) {
+func (t *transport) SetPerMessageDeflate(perMessageDeflate *e_types.PerMessageDeflate) {
 	t.perMessageDeflate = perMessageDeflate
 }
 
@@ -198,7 +199,7 @@ func (t *transport) OnRequest(req *types.HttpContext) {
 }
 
 // Closes the transport.
-func (t *transport) Close(fn ...types.Callable) {
+func (t *transport) Close(fn ...e_types.Callable) {
 	if "closed" == t.ReadyState() || "closing" == t.ReadyState() {
 		return
 	}
@@ -222,7 +223,7 @@ func (t *transport) OnPacket(packet *packet.Packet) {
 }
 
 // Called with the encoded packet data.
-func (t *transport) OnData(data _types.BufferInterface) {
+func (t *transport) OnData(data p_types.BufferInterface) {
 	p, _ := t.parser.DecodePacket(data)
 	t.OnPacket(p)
 }
@@ -252,6 +253,6 @@ func (t *transport) Send([]*packet.Packet) {
 	transport_log.Debug("Not implemented")
 }
 
-func (t *transport) DoClose(types.Callable) {
+func (t *transport) DoClose(e_types.Callable) {
 	transport_log.Debug("Not implemented")
 }

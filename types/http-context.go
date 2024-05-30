@@ -10,6 +10,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
+	_types "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
@@ -18,7 +19,7 @@ type HttpContext struct {
 
 	Websocket *WebSocketConn
 
-	Cleanup Callable
+	Cleanup _types.Callable
 
 	requestCtx *fasthttp.RequestCtx
 
@@ -30,7 +31,7 @@ type HttpContext struct {
 	isHostValid bool
 
 	isDone bool
-	done   chan Void
+	done   chan _types.Void
 	mu     sync.RWMutex
 
 	statusCode      int
@@ -43,7 +44,7 @@ type HttpContext struct {
 func NewHttpContext(ctx *fasthttp.RequestCtx) *HttpContext {
 	c := &HttpContext{}
 	c.EventEmitter = events.New()
-	c.done = make(chan Void)
+	c.done = make(chan _types.Void)
 
 	c.requestCtx = ctx
 
@@ -83,7 +84,7 @@ func (c *HttpContext) Flush() {
 	}
 }
 
-func (c *HttpContext) Done() <-chan Void {
+func (c *HttpContext) Done() <-chan _types.Void {
 	return c.done
 }
 

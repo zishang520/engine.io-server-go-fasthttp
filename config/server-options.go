@@ -6,6 +6,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
+	_types "github.com/zishang520/engine.io/v2/types"
 )
 
 type (
@@ -32,21 +33,21 @@ type (
 		GetRawAllowRequest() AllowRequest
 		AllowRequest() AllowRequest
 
-		SetTransports(*types.Set[string])
-		GetRawTransports() *types.Set[string]
-		Transports() *types.Set[string]
+		SetTransports(*_types.Set[string])
+		GetRawTransports() *_types.Set[string]
+		Transports() *_types.Set[string]
 
 		SetAllowUpgrades(bool)
 		GetRawAllowUpgrades() *bool
 		AllowUpgrades() bool
 
-		SetPerMessageDeflate(*types.PerMessageDeflate)
-		GetRawPerMessageDeflate() *types.PerMessageDeflate
-		PerMessageDeflate() *types.PerMessageDeflate
+		SetPerMessageDeflate(*_types.PerMessageDeflate)
+		GetRawPerMessageDeflate() *_types.PerMessageDeflate
+		PerMessageDeflate() *_types.PerMessageDeflate
 
-		SetHttpCompression(*types.HttpCompression)
-		GetRawHttpCompression() *types.HttpCompression
-		HttpCompression() *types.HttpCompression
+		SetHttpCompression(*_types.HttpCompression)
+		GetRawHttpCompression() *_types.HttpCompression
+		HttpCompression() *_types.HttpCompression
 
 		SetInitialPacket(io.Reader)
 		GetRawInitialPacket() io.Reader
@@ -83,16 +84,16 @@ type (
 		allowRequest AllowRequest
 
 		// the low-level transports that are enabled
-		transports *types.Set[string]
+		transports *_types.Set[string]
 
 		// whether to allow transport upgrades
 		allowUpgrades *bool
 
 		// parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
-		perMessageDeflate *types.PerMessageDeflate
+		perMessageDeflate *_types.PerMessageDeflate
 
 		// parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
-		httpCompression *types.HttpCompression
+		httpCompression *_types.HttpCompression
 
 		// wsEngine is not supported
 		// wsEngine
@@ -250,15 +251,15 @@ func (s *ServerOptions) AllowRequest() AllowRequest {
 //	NewServer(opts)
 //
 // @default ["polling", "websocket"]
-func (s *ServerOptions) SetTransports(transports *types.Set[string]) {
+func (s *ServerOptions) SetTransports(transports *_types.Set[string]) {
 	s.transports = transports
 }
-func (s *ServerOptions) GetRawTransports() *types.Set[string] {
+func (s *ServerOptions) GetRawTransports() *_types.Set[string] {
 	return s.transports
 }
-func (s *ServerOptions) Transports() *types.Set[string] {
+func (s *ServerOptions) Transports() *_types.Set[string] {
 	if s.transports == nil {
-		return types.NewSet("polling", "websocket")
+		return _types.NewSet("polling", "websocket")
 	}
 	return s.transports
 }
@@ -280,27 +281,27 @@ func (s *ServerOptions) AllowUpgrades() bool {
 
 // parameters of the WebSocket permessage-deflate extension (see ws module api docs). Set to false to disable.
 // @default nil
-func (s *ServerOptions) SetPerMessageDeflate(perMessageDeflate *types.PerMessageDeflate) {
+func (s *ServerOptions) SetPerMessageDeflate(perMessageDeflate *_types.PerMessageDeflate) {
 	s.perMessageDeflate = perMessageDeflate
 }
-func (s *ServerOptions) GetRawPerMessageDeflate() *types.PerMessageDeflate {
+func (s *ServerOptions) GetRawPerMessageDeflate() *_types.PerMessageDeflate {
 	return s.perMessageDeflate
 }
-func (s *ServerOptions) PerMessageDeflate() *types.PerMessageDeflate {
+func (s *ServerOptions) PerMessageDeflate() *_types.PerMessageDeflate {
 	return s.perMessageDeflate
 }
 
 // parameters of the http compression for the polling transports (see zlib api docs). Set to false to disable.
 // @default true
-func (s *ServerOptions) SetHttpCompression(httpCompression *types.HttpCompression) {
+func (s *ServerOptions) SetHttpCompression(httpCompression *_types.HttpCompression) {
 	s.httpCompression = httpCompression
 }
-func (s *ServerOptions) GetRawHttpCompression() *types.HttpCompression {
+func (s *ServerOptions) GetRawHttpCompression() *_types.HttpCompression {
 	return s.httpCompression
 }
-func (s *ServerOptions) HttpCompression() *types.HttpCompression {
+func (s *ServerOptions) HttpCompression() *_types.HttpCompression {
 	if s.httpCompression == nil {
-		return &types.HttpCompression{
+		return &_types.HttpCompression{
 			Threshold: 1024,
 		}
 	}

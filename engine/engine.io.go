@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
+	_types "github.com/zishang520/engine.io/v2/types"
 )
 
 const Protocol = 4
@@ -18,7 +19,7 @@ func New(server any, args ...any) Server {
 }
 
 // Creates an fasthttp.Server exclusively used for WS upgrades.
-func Listen(addr string, options any, fn types.Callable) Server {
+func Listen(addr string, options any, fn _types.Callable) Server {
 	server := types.NewWebServer(types.HandlerFunc(func(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Not Implemented", fasthttp.StatusNotImplemented)
 	}))

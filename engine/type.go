@@ -8,6 +8,7 @@ import (
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/transports"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/events"
+	e_types "github.com/zishang520/engine.io/v2/types"
 )
 
 type (
@@ -29,7 +30,7 @@ type (
 
 		Opts() config.ServerOptionsInterface
 		// @protected
-		Clients() *types.Map[string, Socket]
+		Clients() *e_types.Map[string, Socket]
 		ClientsCount() uint64
 		// @protected
 		Middlewares() []Middleware
@@ -46,7 +47,7 @@ type (
 		// Compute the pathname of the requests that are handled by the server
 		ComputePath(config.AttachOptionsInterface) string
 		// Returns a list of available transports for upgrade given a certain transport.
-		Upgrades(string) *types.Set[string]
+		Upgrades(string) *e_types.Set[string]
 		// @protected
 		// Verifies a request.
 		Verify(*types.HttpContext, bool) (int, map[string]any)

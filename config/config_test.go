@@ -7,6 +7,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
+	_types "github.com/zishang520/engine.io/v2/types"
 )
 
 func TestAttachOptionsDefauleValue(t *testing.T) {
@@ -181,7 +182,7 @@ func TestServerOptionsSetValue(t *testing.T) {
 	})
 
 	t.Run("transports", func(t *testing.T) {
-		opts.SetTransports(types.NewSet("websocket", "polling"))
+		opts.SetTransports(_types.NewSet("websocket", "polling"))
 		if transports := opts.Transports(); transports != nil && !(transports.Has("polling") && transports.Has("websocket")) {
 			t.Fatalf(`*ServerOptions.Transports() = %s, want match for ["polling", "websocket")]`, transports.Keys())
 		}
@@ -195,7 +196,7 @@ func TestServerOptionsSetValue(t *testing.T) {
 	})
 
 	t.Run("perMessageDeflate", func(t *testing.T) {
-		input := &types.PerMessageDeflate{Threshold: 1024}
+		input := &_types.PerMessageDeflate{Threshold: 1024}
 		opts.SetPerMessageDeflate(input)
 		if perMessageDeflate := opts.PerMessageDeflate(); perMessageDeflate.Threshold != 1024 {
 			t.Fatalf(`*ServerOptions.PerMessageDeflate().Threshold = %d, want match for %d`, perMessageDeflate.Threshold, 1024)
@@ -203,7 +204,7 @@ func TestServerOptionsSetValue(t *testing.T) {
 	})
 
 	t.Run("httpCompression/threshold", func(t *testing.T) {
-		input := &types.HttpCompression{Threshold: 2048}
+		input := &_types.HttpCompression{Threshold: 2048}
 		opts.SetHttpCompression(input)
 		if httpCompression := opts.HttpCompression(); httpCompression != nil && httpCompression.Threshold != 2048 {
 			t.Fatalf(`*ServerOptions.HttpCompression().Threshold = %d, want match for %d`, httpCompression.Threshold, 2048)

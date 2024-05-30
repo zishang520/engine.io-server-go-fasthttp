@@ -16,6 +16,7 @@ import (
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
+	e_types "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
@@ -29,7 +30,7 @@ type polling struct {
 	dataCtx    *types.HttpContext
 	mu_dataCtx sync.RWMutex
 
-	shouldClose    types.Callable
+	shouldClose    e_types.Callable
 	mu_shouldClose sync.RWMutex
 	musend         sync.Mutex
 }
@@ -347,7 +348,7 @@ func (p *polling) compress(data _types.BufferInterface, encoding string) (_types
 }
 
 // Closes the transport.
-func (p *polling) DoClose(fn types.Callable) {
+func (p *polling) DoClose(fn e_types.Callable) {
 	polling_log.Debug("closing")
 
 	p.mu_dataCtx.RLock()

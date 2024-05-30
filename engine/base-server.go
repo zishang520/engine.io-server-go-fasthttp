@@ -11,6 +11,7 @@ import (
 	"github.com/zishang520/engine.io/v2/errors"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
+	_types "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
@@ -40,16 +41,14 @@ var (
 )
 
 type baseServer struct {
-	// clientsCount has to be first in the struct to guarantee alignment for atomic
-	// operations. http://golang.org/pkg/sync/atomic/#pkg-note-BUG
-	clientsCount uint64
+	clientsCount atomic.Uint64
 
 	events.EventEmitter
 
 	// Prototype interface, used to implement interface method rewriting
 	_proto_ BaseServer
 
-	clients     *types.Map[string, Socket]
+	clients     *_types.Map[string, Socket]
 	middlewares []Middleware
 	opts        config.ServerOptionsInterface
 }
@@ -58,8 +57,7 @@ func MakeBaseServer() BaseServer {
 	baseServer := &baseServer{
 		EventEmitter: events.New(),
 
-		clientsCount: 0,
-		clients:      &types.Map[string, Socket]{},
+		clients: &_types.Map[string, Socket]{},
 	}
 
 	baseServer.Prototype(baseServer)
@@ -79,12 +77,12 @@ func (bs *baseServer) Opts() config.ServerOptionsInterface {
 	return bs.opts
 }
 
-func (bs *baseServer) Clients() *types.Map[string, Socket] {
+func (bs *baseServer) Clients() *_types.Map[string, Socket] {
 	return bs.clients
 }
 
 func (bs *baseServer) ClientsCount() uint64 {
-	return atomic.LoadUint64(&bs.clientsCount)
+	return bs.clientsCount.Load()
 }
 
 func (bs *baseServer) Middlewares() []Middleware {
@@ -146,9 +144,9 @@ func (bs *baseServer) ComputePath(options config.AttachOptionsInterface) string 
 }
 
 // Returns a list of available transports for upgrade given a certain transport.
-func (bs *baseServer) Upgrades(transport string) *types.Set[string] {
+func (bs *baseServer) Upgrades(transport string) *_types.Set[string] {
 	if !bs.opts.AllowUpgrades() {
-		return types.NewSet[string]()
+		return _types.NewSet[string]()
 	}
 	return transports.Transports()[transport].UpgradesTo
 }
@@ -338,11 +336,11 @@ func (bs *baseServer) Handshake(transportName string, ctx *types.HttpContext) (i
 	transport.OnRequest(ctx)
 
 	bs.clients.Store(id, socket)
-	atomic.AddUint64(&bs.clientsCount, 1)
+	bs.clientsCount.Add(1)
 
 	socket.Once("close", func(...any) {
 		bs.clients.Delete(id)
-		atomic.AddUint64(&bs.clientsCount, ^uint64(0))
+		bs.clientsCount.Add(^uint64(0))
 	})
 
 	bs.Emit("connection", socket)

@@ -9,6 +9,7 @@ import (
 	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/log"
+	e_types "github.com/zishang520/engine.io/v2/types"
 )
 
 var ws_log = log.NewLog("engine:ws")
@@ -199,7 +200,7 @@ func (w *websocket) write(data _types.BufferInterface, compress bool) {
 }
 
 // Closes the transport.
-func (w *websocket) DoClose(fn types.Callable) {
+func (w *websocket) DoClose(fn e_types.Callable) {
 	ws_log.Debug(`closing`)
 	w.socket.Close()
 	if fn != nil {

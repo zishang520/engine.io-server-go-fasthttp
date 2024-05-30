@@ -3,13 +3,14 @@ package types
 import (
 	"github.com/fasthttp/websocket"
 	"github.com/zishang520/engine.io/v2/events"
+	_types "github.com/zishang520/engine.io/v2/types"
 )
 
 type WebSocketConn struct {
 	events.EventEmitter
 	*websocket.Conn
 
-	exit chan Void
+	exit chan _types.Void
 }
 
 func (t *WebSocketConn) Close() error {
@@ -21,7 +22,7 @@ func MakeWebSocketConn() *WebSocketConn {
 	c := &WebSocketConn{
 		EventEmitter: events.New(),
 
-		exit: make(chan Void),
+		exit: make(chan _types.Void),
 	}
 
 	return c
@@ -42,6 +43,6 @@ func (t *WebSocketConn) Construct() {
 	})
 }
 
-func (t *WebSocketConn) Done() <-chan Void {
+func (t *WebSocketConn) Done() <-chan _types.Void {
 	return t.exit
 }

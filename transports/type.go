@@ -6,6 +6,7 @@ import (
 	_types "github.com/zishang520/engine.io-go-parser/types"
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/events"
+	e_types "github.com/zishang520/engine.io/v2/types"
 )
 
 type (
@@ -26,8 +27,8 @@ type (
 		SetReq(*types.HttpContext)
 		SetSupportsBinary(bool)
 		SetReadyState(string)
-		SetHttpCompression(*types.HttpCompression)
-		SetPerMessageDeflate(*types.PerMessageDeflate)
+		SetHttpCompression(*e_types.HttpCompression)
+		SetPerMessageDeflate(*e_types.PerMessageDeflate)
 		SetMaxHttpBufferSize(int64)
 
 		// #getters
@@ -44,8 +45,8 @@ type (
 		// @protected
 		SupportsBinary() bool
 		ReadyState() string
-		HttpCompression() *types.HttpCompression
-		PerMessageDeflate() *types.PerMessageDeflate
+		HttpCompression() *e_types.HttpCompression
+		PerMessageDeflate() *e_types.PerMessageDeflate
 		MaxHttpBufferSize() int64
 		// @abstract
 		HandlesUpgrades() bool
@@ -66,7 +67,7 @@ type (
 		OnRequest(*types.HttpContext)
 		// @private
 		// Closes the transport.
-		Close(...types.Callable)
+		Close(...e_types.Callable)
 		// @protected
 		// Called with a transport error.
 		OnError(string, error)
@@ -86,7 +87,7 @@ type (
 		// @protected
 		// @abstract
 		// Closes the transport.
-		DoClose(types.Callable)
+		DoClose(e_types.Callable)
 	}
 
 	Polling interface {

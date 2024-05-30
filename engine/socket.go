@@ -13,6 +13,7 @@ import (
 	"github.com/zishang520/engine.io-server-go-fasthttp/v2/types"
 	"github.com/zishang520/engine.io/v2/events"
 	"github.com/zishang520/engine.io/v2/log"
+	e_types "github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/engine.io/v2/utils"
 )
 
@@ -39,7 +40,7 @@ type socket struct {
 	writeBuffer         []*packet.Packet
 	packetsFn           []func(transports.Transport)
 	sentCallbackFn      []any
-	cleanupFn           []types.Callable
+	cleanupFn           []e_types.Callable
 	pingTimeoutTimer    *utils.Timer
 	mupingTimeoutTimer  sync.RWMutex
 	pingIntervalTimer   *utils.Timer
@@ -120,7 +121,7 @@ func MakeSocket() Socket {
 		writeBuffer:    []*packet.Packet{},
 		packetsFn:      []func(transports.Transport){},
 		sentCallbackFn: []any{},
-		cleanupFn:      []types.Callable{},
+		cleanupFn:      []e_types.Callable{},
 	}
 
 	return s
