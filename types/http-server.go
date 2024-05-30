@@ -22,6 +22,8 @@ func NewWebServer(defaultHandler Handler) *HttpServer {
 	s := &HttpServer{
 		EventEmitter: events.New(),
 		ServeMux:     NewServeMux(defaultHandler),
+
+		servers: _types.NewSlice[any](),
 	}
 	return s
 }
