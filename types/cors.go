@@ -3,7 +3,6 @@ package types
 import (
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/valyala/fasthttp"
 	_types "github.com/zishang520/engine.io/v2/types"
@@ -32,7 +31,6 @@ type (
 		ctx     *HttpContext
 		headers []*Kv
 		varys   []string
-		mu      sync.RWMutex
 	}
 )
 
@@ -55,9 +53,6 @@ func (c *cors) isOriginAllowed(origin string, allowedOrigin any) bool {
 }
 
 func (c *cors) configureOrigin() *cors {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	requestOrigin := c.ctx.Headers().Peek("Origin")
 	if o, ok := c.options.Origin.(string); ok {
 		if o == "*" {
@@ -93,9 +88,6 @@ func (c *cors) configureOrigin() *cors {
 }
 
 func (c *cors) configureMethods() *cors {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	switch methods := c.options.Methods.(type) {
 	case string:
 		c.headers = append(c.headers, &Kv{
@@ -113,9 +105,6 @@ func (c *cors) configureMethods() *cors {
 
 func (c *cors) configureCredentials() *cors {
 	if c.options.Credentials {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
 		c.headers = append(c.headers, &Kv{
 			Key:   "Access-Control-Allow-Credentials",
 			Value: "true",
@@ -129,8 +118,6 @@ func (c *cors) configureAllowedHeaders() *cors {
 	if allowedHeaders == nil {
 		allowedHeaders = c.options.Headers
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	switch h := allowedHeaders.(type) {
 	case nil:
@@ -161,9 +148,6 @@ func (c *cors) configureAllowedHeaders() *cors {
 }
 
 func (c *cors) configureExposedHeaders() *cors {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	switch headers := c.options.ExposedHeaders.(type) {
 	case string:
 		if len(headers) > 0 {
@@ -185,11 +169,8 @@ func (c *cors) configureExposedHeaders() *cors {
 
 func (c *cors) configureMaxAge() *cors {
 	if c.options.MaxAge != "" {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
 		c.headers = append(c.headers, &Kv{
-			Key:   "Access-Control-Expose-Headers",
+			Key:   "Access-Control-Max-Age",
 			Value: c.options.MaxAge,
 		})
 	}
@@ -227,9 +208,6 @@ func parseVary(vary string) *_types.Set[string] {
 }
 
 func (c *cors) applyHeaders() *cors {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	for _, header := range c.headers {
 		c.ctx.ResponseHeaders.Set(header.Key, header.Value)
 	}

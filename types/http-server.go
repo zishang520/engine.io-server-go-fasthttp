@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/valyala/fasthttp"
 	"github.com/zishang520/engine.io/v2/errors"
@@ -15,8 +14,7 @@ type HttpServer struct {
 	events.EventEmitter
 	*ServeMux
 
-	servers []any
-	mu      sync.RWMutex
+	servers *_types.Slice[any]
 }
 
 func NewWebServer(defaultHandler Handler) *HttpServer {
@@ -45,7 +43,7 @@ func (s *HttpServer) httpServer(handler Handler) *fasthttp.Server {
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		}}
 
-	s.servers = append(s.servers, server)
+	s.servers.Push(server)
 
 	return server
 }
@@ -58,7 +56,7 @@ func (s *HttpServer) Close(fn func(error)) (err error) {
 
 	if s.servers != nil {
 		var closingErr, serverErr error
-		for _, server := range s.servers {
+		s.servers.Range(func(server any, _ int) bool {
 			switch srv := server.(type) {
 			case *fasthttp.Server:
 				serverErr = srv.Shutdown()
@@ -68,7 +66,8 @@ func (s *HttpServer) Close(fn func(error)) (err error) {
 			if serverErr != nil && closingErr == nil {
 				closingErr = serverErr
 			}
-		}
+			return true
+		})
 
 		if closingErr != nil {
 			err = fmt.Errorf("error occurred while closing servers: %v", closingErr)

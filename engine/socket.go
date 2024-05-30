@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zishang520/engine.io-go-parser/packet"
@@ -27,32 +27,21 @@ type socket struct {
 	request       *types.HttpContext
 	remoteAddress string
 
-	readyState  string
-	transport   transports.Transport
-	mutransport sync.RWMutex
+	readyState atomic.Value
+	transport  atomic.Pointer[transports.Transport]
 
 	// This is the session identifier that the client will use in the subsequent HTTP requests. It must not be shared with
 	// others parties, as it might lead to session hijacking.
-	id                  string
-	server              BaseServer
-	upgrading           bool
-	upgraded            bool
-	writeBuffer         []*packet.Packet
-	packetsFn           []func(transports.Transport)
-	sentCallbackFn      []any
-	cleanupFn           []e_types.Callable
-	pingTimeoutTimer    *utils.Timer
-	mupingTimeoutTimer  sync.RWMutex
-	pingIntervalTimer   *utils.Timer
-	mupingIntervalTimer sync.RWMutex
-
-	mureadyState     sync.RWMutex
-	muupgrading      sync.RWMutex
-	muupgraded       sync.RWMutex
-	muwriteBuffer    sync.RWMutex
-	mupacketsFn      sync.RWMutex
-	musentCallbackFn sync.RWMutex
-	mucleanupFn      sync.RWMutex
+	id                string
+	server            BaseServer
+	upgrading         atomic.Bool
+	upgraded          atomic.Bool
+	writeBuffer       *e_types.Slice[*packet.Packet]
+	packetsFn         *e_types.Slice[func(transports.Transport)]
+	sentCallbackFn    *e_types.Slice[any]
+	cleanupFn         *e_types.Slice[e_types.Callable]
+	pingTimeoutTimer  atomic.Pointer[utils.Timer]
+	pingIntervalTimer atomic.Pointer[utils.Timer]
 }
 
 func (s *socket) Protocol() int {
@@ -60,17 +49,11 @@ func (s *socket) Protocol() int {
 }
 
 func (s *socket) Upgraded() bool {
-	s.muupgraded.RLock()
-	defer s.muupgraded.RUnlock()
-
-	return s.upgraded
+	return s.upgraded.Load()
 }
 
 func (s *socket) Upgrading() bool {
-	s.muupgrading.RLock()
-	defer s.muupgrading.RUnlock()
-
-	return s.upgrading
+	return s.upgrading.Load()
 }
 
 func (s *socket) Id() string {
@@ -86,10 +69,10 @@ func (s *socket) Request() *types.HttpContext {
 }
 
 func (s *socket) Transport() transports.Transport {
-	s.mutransport.RLock()
-	defer s.mutransport.RUnlock()
-
-	return s.transport
+	if v := s.transport.Load(); v != nil {
+		return *v
+	}
+	return nil
 }
 
 func (s *socket) Server() BaseServer {
@@ -97,18 +80,16 @@ func (s *socket) Server() BaseServer {
 }
 
 func (s *socket) ReadyState() string {
-	s.mureadyState.RLock()
-	defer s.mureadyState.RUnlock()
-
-	return s.readyState
+	if v, ok := s.readyState.Load().(string); ok {
+		return v
+	}
+	return ""
 }
 
 func (s *socket) SetReadyState(state string) {
-	s.mureadyState.Lock()
-	defer s.mureadyState.Unlock()
-	socket_log.Debug("readyState updated from %s to %s", s.readyState, state)
+	socket_log.Debug("readyState updated from %s to %s", s.ReadyState(), state)
 
-	s.readyState = state
+	s.readyState.Store(state)
 }
 
 // Client class.
@@ -116,13 +97,12 @@ func MakeSocket() Socket {
 	s := &socket{
 		EventEmitter: events.New(),
 
-		readyState: "opening",
-
-		writeBuffer:    []*packet.Packet{},
-		packetsFn:      []func(transports.Transport){},
-		sentCallbackFn: []any{},
-		cleanupFn:      []e_types.Callable{},
+		writeBuffer:    e_types.NewSlice[*packet.Packet](),
+		packetsFn:      e_types.NewSlice[func(transports.Transport)](),
+		sentCallbackFn: e_types.NewSlice[any](),
+		cleanupFn:      e_types.NewSlice[e_types.Callable](),
 	}
+	s.readyState.Store("opening")
 
 	return s
 }
@@ -222,9 +202,7 @@ func (s *socket) onPacket(data *packet.Packet) {
 			return
 		}
 		socket_log.Debug("got pong")
-		s.mupingIntervalTimer.RLock()
-		s.pingIntervalTimer.Refresh()
-		s.mupingIntervalTimer.RUnlock()
+		s.pingIntervalTimer.Load().Refresh()
 		s.Emit("heartbeat")
 	case packet.ERROR:
 		s.OnClose("parse error")
@@ -243,28 +221,22 @@ func (s *socket) onError(err any) {
 // Pings client every `this.pingInterval` and expects response
 // within `this.pingTimeout` or closes connection.
 func (s *socket) schedulePing() {
-	s.mupingIntervalTimer.Lock()
-	defer s.mupingIntervalTimer.Unlock()
-
-	s.pingIntervalTimer = utils.SetTimeout(func() {
+	s.pingIntervalTimer.Store(utils.SetTimeout(func() {
 		socket_log.Debug("writing ping packet - expecting pong within %dms", int64(s.server.Opts().PingTimeout()/time.Millisecond))
 		s.sendPacket(packet.PING, nil, nil, nil)
 		s.resetPingTimeout(s.server.Opts().PingTimeout())
-	}, s.server.Opts().PingInterval())
+	}, s.server.Opts().PingInterval()))
 }
 
 // Resets ping timeout.
 func (s *socket) resetPingTimeout(timeout time.Duration) {
-	s.mupingTimeoutTimer.Lock()
-	defer s.mupingTimeoutTimer.Unlock()
-
-	utils.ClearTimeout(s.pingTimeoutTimer)
-	s.pingTimeoutTimer = utils.SetTimeout(func() {
+	utils.ClearTimeout(s.pingTimeoutTimer.Load())
+	s.pingTimeoutTimer.Store(utils.SetTimeout(func() {
 		if s.ReadyState() == "closed" {
 			return
 		}
 		s.OnClose("ping timeout")
-	}, timeout)
+	}, timeout))
 }
 
 // Attaches handlers for the given transport.
@@ -281,42 +253,33 @@ func (s *socket) setTransport(transport transports.Transport) {
 	flush := func(...any) { s.flush() }
 	onClose := func(...any) { s.OnClose("transport close") }
 
-	s.mutransport.Lock()
-	s.transport = transport
-	s.mutransport.Unlock()
+	s.transport.Store(&transport)
 
-	s.mutransport.RLock()
-	s.transport.Once("error", onError)
-	s.transport.On("packet", onPacket)
-	s.transport.On("drain", flush)
-	s.transport.Once("close", onClose)
-	s.mutransport.RUnlock()
+	transport.Once("error", onError)
+	transport.On("packet", onPacket)
+	transport.On("drain", flush)
+	transport.Once("close", onClose)
 
 	// s function will manage packet events (also message callbacks)
 	s.setupSendCallback()
 
-	s.mucleanupFn.Lock()
-	s.cleanupFn = append(s.cleanupFn, func() {
+	s.cleanupFn.Push(func() {
 		transport.RemoveListener("error", onError)
 		transport.RemoveListener("packet", onPacket)
 		transport.RemoveListener("drain", flush)
 		transport.RemoveListener("close", onClose)
 	})
-	s.mucleanupFn.Unlock()
 }
 
 // Upgrades socket to the given transport
 func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	socket_log.Debug(`might upgrade socket transport from "%s" to "%s"`, s.Transport().Name(), transport.Name())
 
-	s.muupgrading.Lock()
-	s.upgrading = true
-	s.muupgrading.Unlock()
+	s.upgrading.Store(true)
 
 	var check, cleanup func()
 	var onPacket, onError, onTransportClose, onClose events.Listener
-	var upgradeTimeoutTimer, checkIntervalTimer *utils.Timer
-	var mu_upgradeTimeoutTimer, mu_checkIntervalTimer sync.RWMutex
+	var upgradeTimeoutTimer, checkIntervalTimer atomic.Pointer[utils.Timer]
 
 	onPacket = func(datas ...any) {
 		data := datas[0].(*packet.Packet)
@@ -327,19 +290,15 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 			transport.Send([]*packet.Packet{{Type: packet.PONG, Data: strings.NewReader("probe")}})
 			s.Emit("upgrading", transport)
 
-			mu_checkIntervalTimer.Lock()
-			utils.ClearInterval(checkIntervalTimer)
-			checkIntervalTimer = utils.SetInterval(check, 100*time.Millisecond)
-			mu_checkIntervalTimer.Unlock()
+			utils.ClearInterval(checkIntervalTimer.Load())
+			checkIntervalTimer.Store(utils.SetInterval(check, 100*time.Millisecond))
 
 		} else if packet.UPGRADE == data.Type && s.ReadyState() != "closed" {
 			socket_log.Debug("got upgrade packet - upgrading")
 			cleanup()
 			s.Transport().Discard()
 
-			s.muupgraded.Lock()
-			s.upgraded = true
-			s.muupgraded.Unlock()
+			s.upgraded.Store(true)
 
 			s.clearTransport()
 			s.setTransport(transport)
@@ -365,16 +324,10 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 	}
 
 	cleanup = func() {
-		s.muupgrading.Lock()
-		s.upgrading = false
-		s.muupgrading.Unlock()
+		s.upgrading.Store(false)
 
-		mu_checkIntervalTimer.RLock()
-		utils.ClearInterval(checkIntervalTimer)
-		mu_checkIntervalTimer.RUnlock()
-		mu_upgradeTimeoutTimer.RLock()
-		utils.ClearTimeout(upgradeTimeoutTimer)
-		mu_upgradeTimeoutTimer.RUnlock()
+		utils.ClearInterval(checkIntervalTimer.Load())
+		utils.ClearTimeout(upgradeTimeoutTimer.Load())
 
 		if transport != nil {
 			transport.RemoveListener("packet", onPacket)
@@ -401,9 +354,8 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 		onError("socket closed")
 	}
 
-	mu_upgradeTimeoutTimer.Lock()
 	// set transport upgrade timer
-	upgradeTimeoutTimer = utils.SetTimeout(func() {
+	upgradeTimeoutTimer.Store(utils.SetTimeout(func() {
 		socket_log.Debug("client did not complete upgrade - closing transport")
 		cleanup()
 		if transport != nil {
@@ -411,8 +363,7 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 				transport.Close()
 			}
 		}
-	}, s.server.Opts().UpgradeTimeout())
-	mu_upgradeTimeoutTimer.Unlock()
+	}, s.server.Opts().UpgradeTimeout()))
 
 	transport.On("packet", onPacket)
 	transport.Once("close", onTransportClose)
@@ -423,12 +374,11 @@ func (s *socket) MaybeUpgrade(transport transports.Transport) {
 
 // Clears listeners and timers associated with current transport.
 func (s *socket) clearTransport() {
-
-	s.mucleanupFn.RLock()
-	for _, cleanup := range s.cleanupFn {
+	s.cleanupFn.Range(func(cleanup e_types.Callable, _ int) bool {
 		cleanup()
-	}
-	s.mucleanupFn.RUnlock()
+		return true
+	})
+	s.cleanupFn.Clear()
 
 	// silence further transport errors and prevent uncaught exceptions
 	s.Transport().On("error", func(...any) {
@@ -438,9 +388,7 @@ func (s *socket) clearTransport() {
 	// ensure transport won't stay open
 	s.Transport().Close()
 
-	s.mupingTimeoutTimer.RLock()
-	utils.ClearTimeout(s.pingTimeoutTimer)
-	s.mupingTimeoutTimer.RUnlock()
+	utils.ClearTimeout(s.pingTimeoutTimer.Load())
 }
 
 // Called upon transport considered closed.
@@ -452,29 +400,19 @@ func (s *socket) OnClose(reason string, description ...any) {
 		s.SetReadyState("closed")
 
 		// clear timers
-		s.mupingIntervalTimer.RLock()
-		utils.ClearTimeout(s.pingIntervalTimer)
-		s.mupingIntervalTimer.RUnlock()
+		utils.ClearTimeout(s.pingIntervalTimer.Load())
 
-		s.mupingTimeoutTimer.RLock()
-		utils.ClearTimeout(s.pingTimeoutTimer)
-		s.mupingTimeoutTimer.RUnlock()
+		utils.ClearTimeout(s.pingTimeoutTimer.Load())
 
 		// clean writeBuffer in defer, so developers can still
 		// grab the writeBuffer on 'close' event
 		defer func() {
-			s.muwriteBuffer.Lock()
-			s.writeBuffer = s.writeBuffer[:0]
-			s.muwriteBuffer.Unlock()
+			s.writeBuffer.Clear()
 		}()
 
-		s.mupacketsFn.Lock()
-		s.packetsFn = s.packetsFn[:0]
-		s.mupacketsFn.Unlock()
+		s.packetsFn.Clear()
 
-		s.musentCallbackFn.Lock()
-		s.sentCallbackFn = s.sentCallbackFn[:0]
-		s.musentCallbackFn.Unlock()
+		s.sentCallbackFn.Clear()
 
 		s.clearTransport()
 		s.Emit("close", reason, description[0])
@@ -485,13 +423,7 @@ func (s *socket) OnClose(reason string, description ...any) {
 func (s *socket) setupSendCallback() {
 	// the message was sent successfully, execute the callback
 	onDrain := func(...any) {
-		s.musentCallbackFn.Lock()
-		defer s.musentCallbackFn.Unlock()
-
-		if len(s.sentCallbackFn) > 0 {
-			seqFn := s.sentCallbackFn[0]
-			s.sentCallbackFn = s.sentCallbackFn[1:]
-
+		if seqFn, err := s.sentCallbackFn.Shift(); err == nil {
 			switch fns := seqFn.(type) {
 			case func(transports.Transport):
 				socket_log.Debug("executing send callback")
@@ -507,11 +439,9 @@ func (s *socket) setupSendCallback() {
 
 	s.Transport().On("drain", onDrain)
 
-	s.mucleanupFn.Lock()
-	s.cleanupFn = append(s.cleanupFn, func() {
+	s.cleanupFn.Push(func() {
 		s.Transport().RemoveListener("drain", onDrain)
 	})
-	s.mucleanupFn.Unlock()
 }
 
 // Sends a message packet.
@@ -524,7 +454,7 @@ func (s *socket) Send(
 	return s
 }
 
-// Alias of {@link send}.
+// Alias of [Send]
 func (s *socket) Write(
 	data io.Reader,
 	options *packet.Options,
@@ -543,7 +473,7 @@ func (s *socket) sendPacket(
 ) {
 
 	if "closing" != s.ReadyState() && "closed" != s.ReadyState() {
-		socket_log.Debug(`sending packet "%s" (%v)`, packetType, data)
+		socket_log.Debug(`sending packet "%s" (%p)`, packetType, data)
 
 		if options == nil {
 			options = &packet.Options{Compress: true}
@@ -558,15 +488,11 @@ func (s *socket) sendPacket(
 		// exports packetCreate event
 		s.Emit("packetCreate", packet)
 
-		s.muwriteBuffer.Lock()
-		s.writeBuffer = append(s.writeBuffer, packet)
-		s.muwriteBuffer.Unlock()
+		s.writeBuffer.Push(packet)
 
 		// add send callback to object, if defined
 		if callback != nil {
-			s.mupacketsFn.Lock()
-			s.packetsFn = append(s.packetsFn, callback)
-			s.mupacketsFn.Unlock()
+			s.packetsFn.Push(callback)
 		}
 
 		s.flush()
@@ -575,43 +501,26 @@ func (s *socket) sendPacket(
 
 // Attempts to flush the packets buffer.
 func (s *socket) flush() {
-	s.muwriteBuffer.RLock()
-	wbuf := make([]*packet.Packet, len(s.writeBuffer))
-	copy(wbuf, s.writeBuffer)
-	s.muwriteBuffer.RUnlock()
-
-	if "closed" != s.ReadyState() && s.Transport().Writable() && len(wbuf) > 0 {
-		socket_log.Debug("flushing buffer to transport")
-		s.Emit("flush", wbuf)
-		s.server.Emit("flush", s, wbuf)
-
-		s.muwriteBuffer.Lock()
-		s.writeBuffer = s.writeBuffer[:0]
-		s.muwriteBuffer.Unlock()
-
-		if !s.Transport().SupportsFraming() {
-			s.musentCallbackFn.Lock()
-			s.mupacketsFn.RLock()
-			s.sentCallbackFn = append(s.sentCallbackFn, s.packetsFn)
-			s.mupacketsFn.RUnlock()
-			s.musentCallbackFn.Unlock()
-
-		} else {
-			s.musentCallbackFn.Lock()
-			s.mupacketsFn.RLock()
-			for _, fn := range s.packetsFn {
-				s.sentCallbackFn = append(s.sentCallbackFn, fn)
+	if "closed" != s.ReadyState() && s.Transport().Writable() {
+		if wbuf := s.writeBuffer.AllAndClear(); len(wbuf) > 0 {
+			socket_log.Debug("flushing buffer to transport")
+			s.Emit("flush", wbuf)
+			s.server.Emit("flush", s, wbuf)
+			if !s.Transport().SupportsFraming() {
+				s.sentCallbackFn.Push(s.packetsFn.AllAndClear())
+			} else {
+				s.sentCallbackFn.Push((func(inputs []func(transports.Transport)) (outputs []any) {
+					for _, fn := range inputs {
+						outputs = append(outputs, fn)
+					}
+					return outputs
+				})(s.packetsFn.AllAndClear())...)
 			}
-			s.mupacketsFn.RUnlock()
-			s.musentCallbackFn.Unlock()
-		}
-		s.mupacketsFn.Lock()
-		s.packetsFn = s.packetsFn[:0]
-		s.mupacketsFn.Unlock()
 
-		s.Transport().Send(wbuf)
-		s.Emit("drain")
-		s.server.Emit("drain", s)
+			s.Transport().Send(wbuf)
+			s.Emit("drain")
+			s.server.Emit("drain", s)
+		}
 	}
 }
 
@@ -634,12 +543,8 @@ func (s *socket) Close(discard bool) {
 
 	s.SetReadyState("closing")
 
-	s.muwriteBuffer.RLock()
-	writeBufferLength := len(s.writeBuffer)
-	s.muwriteBuffer.RUnlock()
-
-	if writeBufferLength > 0 {
-		socket_log.Debug("there are %d remaining packets in the buffer, waiting for the 'drain' event", writeBufferLength)
+	if length := s.writeBuffer.Len(); length > 0 {
+		socket_log.Debug("there are %d remaining packets in the buffer, waiting for the 'drain' event", length)
 		s.Once("drain", func(...any) {
 			socket_log.Debug("all packets have been sent, closing the transport")
 			s.closeTransport(discard)
