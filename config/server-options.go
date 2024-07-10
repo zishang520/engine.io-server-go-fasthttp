@@ -247,10 +247,10 @@ func (s *ServerOptions) AllowRequest() AllowRequest {
 // The low-level transports that are enabled.
 //
 //	opts := &ServerOptions{}
-//	opts.SetTransports(types.NewSet("polling", "websocket"))
+//	opts.SetTransports(types.NewSet("websocket"))
 //	NewServer(opts)
 //
-// @default ["polling", "websocket"]
+// @default ["websocket"]
 func (s *ServerOptions) SetTransports(transports *_types.Set[string]) {
 	s.transports = transports
 }
@@ -259,7 +259,7 @@ func (s *ServerOptions) GetRawTransports() *_types.Set[string] {
 }
 func (s *ServerOptions) Transports() *_types.Set[string] {
 	if s.transports == nil {
-		return _types.NewSet("polling", "websocket")
+		return _types.NewSet("websocket")
 	}
 	return s.transports
 }

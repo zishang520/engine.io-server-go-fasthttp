@@ -95,8 +95,8 @@ func TestServerOptionsDefauleValue(t *testing.T) {
 	})
 
 	t.Run("transports", func(t *testing.T) {
-		if transports := opts.Transports(); opts.GetRawTransports() == nil && transports != nil && !(transports.Has("polling") && transports.Has("websocket")) {
-			t.Fatalf(`*ServerOptions.Transports() = %s, want match for ["polling", "websocket")]`, transports.Keys())
+		if transports := opts.Transports(); opts.GetRawTransports() == nil && transports != nil && !transports.Has("websocket") {
+			t.Fatalf(`*ServerOptions.Transports() = %s, want match for ["websocket")]`, transports.Keys())
 		}
 	})
 

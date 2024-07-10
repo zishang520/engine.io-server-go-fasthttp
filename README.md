@@ -455,7 +455,7 @@ to a single process.
         value is `1E6`.
       - `SetAllowRequest(config.AllowRequest)`: A function that receives a given handshake or upgrade request as its first argument and can decide whether to continue. error is not empty to indicate that the request was rejected.
       - `SetTransports(*types.Set[string])`: transports to allow connections
-        to (`['polling', 'websocket']`)
+        to (`['websocket']`)
       - `SetAllowUpgrades(bool)`: whether to allow transport upgrades
         (`true`)
       - `SetPerMessageDeflate(*types.PerMessageDeflate)`: parameters of the WebSocket permessage-deflate extension
@@ -584,7 +584,6 @@ DEBUG=engine*
 
 ## Transports
 
-- `polling`: XHR / JSONP polling transport.
 - `websocket`: WebSocket transport.
 
 ## Tests
