@@ -72,42 +72,47 @@ func (w *websocket) SupportsFraming() bool {
 
 func (w *websocket) _init() {
 	for {
-		mt, message, err := w.socket.NextReader()
-		if err != nil {
-			if ws.IsUnexpectedCloseError(err) {
-				w.socket.Emit("close")
-			} else {
-				w.socket.Emit("error", err)
-			}
+		select {
+		case <-w.socket.Done():
 			return
-		}
+		default:
+			mt, message, err := w.socket.NextReader()
+			if err != nil {
+				if ws.IsUnexpectedCloseError(err) {
+					w.socket.Emit("close")
+				} else {
+					w.socket.Emit("error", err)
+				}
+				return
+			}
 
-		switch mt {
-		case ws.BinaryMessage:
-			read := _types.NewBytesBuffer(nil)
-			if _, err := read.ReadFrom(message); err != nil {
-				w.socket.Emit("error", err)
-			} else {
-				w.onMessage(read)
+			switch mt {
+			case ws.BinaryMessage:
+				read := _types.NewBytesBuffer(nil)
+				if _, err := read.ReadFrom(message); err != nil {
+					w.socket.Emit("error", err)
+				} else {
+					w.onMessage(read)
+				}
+			case ws.TextMessage:
+				read := _types.NewStringBuffer(nil)
+				if _, err := read.ReadFrom(message); err != nil {
+					w.socket.Emit("error", err)
+				} else {
+					w.onMessage(read)
+				}
+			case ws.CloseMessage:
+				w.socket.Emit("close")
+				if c, ok := message.(io.Closer); ok {
+					c.Close()
+				}
+				return
+			case ws.PingMessage:
+			case ws.PongMessage:
 			}
-		case ws.TextMessage:
-			read := _types.NewStringBuffer(nil)
-			if _, err := read.ReadFrom(message); err != nil {
-				w.socket.Emit("error", err)
-			} else {
-				w.onMessage(read)
-			}
-		case ws.CloseMessage:
-			w.socket.Emit("close")
 			if c, ok := message.(io.Closer); ok {
 				c.Close()
 			}
-			return
-		case ws.PingMessage:
-		case ws.PongMessage:
-		}
-		if c, ok := message.(io.Closer); ok {
-			c.Close()
 		}
 	}
 }
