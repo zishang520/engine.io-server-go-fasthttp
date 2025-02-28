@@ -7,7 +7,7 @@
 cross-browser/cross-device bi-directional communication layer for
 [Socket.IO for golang](http://github.com/zishang520/socket.io).
 
-## How to use
+## How to use (**Due to the update of related components, the project has been archived, please use https://github.com/zishang520/engine.io**)
 
 ### Server
 
